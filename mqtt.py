@@ -1,3 +1,4 @@
+import subprocess
 import paho.mqtt.client as mqtt
 import json
 import datetime
@@ -10,8 +11,8 @@ import math
 import struct
 import wave
 
-Instance = vlc.Instance()
-player = Instance.media_player_new()
+# Instance = vlc.Instance()
+# player = Instance.media_player_new()
 state = 0
 
 hostname = 'ibobby.ai.hinet.net'
@@ -91,10 +92,9 @@ def serviceInvoke(text):
 
 def on_connect(client, userdata, flag, rc):
     print("連線結果:" + str(rc))
-
     client.subscribe(rsp)
     client.subscribe(asr_debug)
-    testServer()
+    # testServer()
 
 
 def testServer():
@@ -129,9 +129,17 @@ def on_message(client, userdata, msg):
                 tUrl = ele.get('tUrl', 0)
                 if tUrl != 0:
                     print("說話中...:" + tUrl)
-                    Media = Instance.media_new(tUrl)
-                    player.set_media(Media)
-                    player.play()
+                    subprocess.run(['ffplay', '-autoexit', tUrl])
+                    # result = subprocess.run(['ffplay', '-autoexit', tUrl], stdout=subprocess.PIPE)
+                    # print(result.stdout)
+                    global silence
+                    silence = True
+                    stream.start_stream()
+                    print("waiting for Speech")
+
+                    # Media = Instance.media_new(tUrl)
+                    # player.set_media(Media)
+                    # player.play()
 
                     content = ele.get('Content', 0)
                     if content != 0 and not flag:
@@ -149,7 +157,7 @@ def on_message(client, userdata, msg):
 
 
 # Assuming Energy threshold upper than 30 dB
-Threshold = 200
+Threshold = 80
 
 SHORT_NORMALIZE = (1.0 / 32768.0)
 chunk = 2400
@@ -198,9 +206,6 @@ def WriteSpeech(WriteData):
 
 
 def KeepRecord(TimeoutSignal, LastBlock):
-    global isPlaying
-    global samples, silence, Time
-
     samples = []
     samples.append(LastBlock)
     for i in range(0, TimeoutSignal):
@@ -217,7 +222,6 @@ def KeepRecord(TimeoutSignal, LastBlock):
 
     print("end record ")
     client.publish(asr, b'\x02')
-    isPlaying = True
 
     # print("write to File")
     WriteSpeech(samples)
@@ -242,110 +246,56 @@ stream = p.open(format=FORMAT,
                 input=True,
                 output=True,
                 frames_per_buffer=chunk)
+try:
+    while True:
+        client.loop(.1)
+        if silence:
+            try:
+                input = GetStream(chunk)
 
-import subprocess
-# result = subprocess.run(['ffplay', '-autoexit', 'http://ibobby.ai.hinet.net:8888/tts/ch/synthesisRaw?inputText=%E8%AB%8B%E5%95%8F%E6%82%A8%E8%A6%81%E5%95%8F%E7%9A%84%E4%BD%8D%E7%BD%AE%EF%BC%9F'], stdout=subprocess.PIPE)
-# print(result.stdout)
+            except:
+                continue
 
-url = 'https://widget.kkbox.com/v1/?id=4kxvr3wPWkaL9_y3o_&type=song&terr=TW&lang=TC&autoplay=true&loop=true'
-# result = subprocess.Popen(['firefox', url], stdout=subprocess.PIPE)
-# print(result.stdout)
+            rms_value = int(rms(input))
+            print(rms_value)
+            if (rms_value > Threshold):
+                print('---:{0}'.format(rms_value))
+                silence = False
+                LastBlock = input
+                print("Recording....")
+                client.publish(asr, b'\x00')
+                KeepRecord(TimeoutSignal, LastBlock)
 
-print("waiting for Speech")
-print(silence)
-while True:
-    client.loop(.1)
-    continue
-
+            Time = Time + 1
+            if (Time > TimeoutSignal):
+                Time = 0
+                # print("Time Out No Speech Detected")
     '''
-    if state == 0:
-        if player.get_state() == vlc.State.Opening:
-            state = 1
-
-    elif state == 1:
-        if player.get_state() == vlc.State.Ended:
-            state = 0
-            silence = True
-            Time = 0
-            stream.start_stream()
-            print("waiting for Speech")
     '''
 
-    # if not isPlaying and silence:
-    if silence:
-        try:
-            input = GetStream(chunk)
+    '''
+    text = input('請輸入任務')
+    client.publish(req, serviceInvoke(text))
+    client.loop_start()
+    client.loop_forever(retry_first_connection=True)
+    publish.single(req, payload, hostname=hostname, port=port)
+    '''
+    '''
+    info = p.get_host_api_info_by_index(0)
+    numdevices = info.get('deviceCount')
+    for i in range(0, numdevices):
+            if (p.get_device_info_by_host_api_device_index(0, i).get('maxInputChannels')) > 0:
+                print("Input Device id ", i, " - ", p.get_device_info_by_host_api_device_index(0, i).get('name'))
+    '''
 
-        except:
-            continue
+    # result = subprocess.run(['ffplay', '-autoexit', 'http://ibobby.ai.hinet.net:8888/tts/ch/synthesisRaw?inputText=%E8%AB%8B%E5%95%8F%E6%82%A8%E8%A6%81%E5%95%8F%E7%9A%84%E4%BD%8D%E7%BD%AE%EF%BC%9F'], stdout=subprocess.PIPE)
+    # print(result.stdout)
 
-        rms_value = int(rms(input))
-        print(rms_value)
-
-        if (rms_value > Threshold):
-            print('rms:{0}'.format(rms_value))
-            silence = False
-            LastBlock = input
-            print("Recording....")
-            client.publish(asr, b'\x00')
-            KeepRecord(TimeoutSignal, LastBlock)
-
-        Time = Time + 1
-        if (Time > TimeoutSignal):
-            Time = 0
-            # print("Time Out No Speech Detected")
-'''
-'''
-
-'''
-text = input('請輸入任務')
-client.publish(req, serviceInvoke(text))
-client.loop_start()
-client.loop_forever(retry_first_connection=True)
-publish.single(req, payload, hostname=hostname, port=port)
-'''
-'''
-info = p.get_host_api_info_by_index(0)
-numdevices = info.get('deviceCount')
-for i in range(0, numdevices):
-        if (p.get_device_info_by_host_api_device_index(0, i).get('maxInputChannels')) > 0:
-            print("Input Device id ", i, " - ", p.get_device_info_by_host_api_device_index(0, i).get('name'))
-'''
-
-'''
-import snowboydecoder
-import signal
-
-interrupted = False
+    # url = 'https://widget.kkbox.com/v1/?id=4kxvr3wPWkaL9_y3o_&type=song&terr=TW&lang=TC&autoplay=true&loop=true'
+    # result = subprocess.Popen(['firefox', url], stdout=subprocess.PIPE)
+    # print(result.stdout)
 
 
-def signal_handler(signal, frame):
-    global interrupted
-    interrupted = True
+except KeyboardInterrupt:
+    print('bye~')
 
-
-def interrupt_callback():
-    global interrupted
-    return interrupted
-
-
-def on_hot_word():
-    global detector
-    snowboydecoder.play_audio_file()
-    detector.terminate()
-    print("Restarting...")
-
-
-model = 'resources/snowboy.umdl'
-# capture SIGINT signal, e.g., Ctrl+C
-# signal.signal(signal.SIGINT, signal_handler)
-detector = snowboydecoder.HotwordDetector(model, sensitivity=0.5)
-print('Listening... Press Ctrl+C to exit')
-
-# main loop
-detector.start(detected_callback=on_hot_word,
-               interrupt_check=interrupt_callback,
-               sleep_time=0.03)
-
-detector.terminate()
-'''
