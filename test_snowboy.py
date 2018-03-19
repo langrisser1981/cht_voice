@@ -41,7 +41,7 @@ def on_hot_word(hotword):
     detector.terminate()
 
     voice_service = {
-        'snowboy': ["echo", "谷歌助理"],
+        'snowboy': ["python3", "./google/pushtotalk.py", '--project-id', 'massive-tuner-194305', '--device-model-id', 'massive-tuner-194305-assistant-sdk-light-qev3ip'],
         'smart_mirror': ["python3", "./mqtt.py"]
     }
     cmd = voice_service.get(hotword, ["echo", "錯誤的關鍵字"])
