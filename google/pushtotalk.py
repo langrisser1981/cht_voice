@@ -35,6 +35,8 @@ from google.assistant.embedded.v1alpha2 import (
 )
 from tenacity import retry, stop_after_attempt, retry_if_exception
 
+import subprocess
+
 try:
     from . import (
         assistant_helpers,
