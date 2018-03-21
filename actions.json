@@ -1,0 +1,70 @@
+{
+    "manifest": {
+        "displayName": "Play kkbox",
+        "invocationName": "Play kkbox",
+        "category": "PRODUCTIVITY"
+    },
+    "actions": [
+        {
+            "name": "com.acme.actions.play_kkbox",
+            "availability": {
+                "deviceClasses": [
+                    {
+                        "assistantSdkDevice": {}
+                    }
+                ]
+            },
+            "intent": {
+                "name": "com.acme.intents.play_kkbox",
+                "parameters": [
+                    {
+                        "name": "song",
+                        "type": "SongName"
+                    }
+                ],
+                "trigger": {
+                    "queryPatterns": [
+                        "play $SongName:song"
+                    ]
+                }
+            },
+            "fulfillment": {
+                "staticFulfillment": {
+                    "templatedResponse": {
+                        "items": [
+                            {
+                                "simpleResponse": {
+                                    "textToSpeech": "I will play $song.raw for you"
+                                }
+                            },
+                            {
+                                "deviceExecution": {
+                                    "command": "com.acme.commands.play_kkbox",
+                                    "params": {
+                                        "songName": "$song"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    ],
+    "types": [
+        {
+            "name": "$SongName",
+            "entities": [
+                {
+                    "key": "SONG",
+                    "synonyms": [
+                        "kkbox",
+                        "song",
+                        "sunny flower",
+                        "my favorite"
+                    ]
+                }
+            ]
+        }
+    ]
+}

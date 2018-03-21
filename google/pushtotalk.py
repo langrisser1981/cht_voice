@@ -410,6 +410,13 @@ def main(api_endpoint, credentials, project_id,
         else:
             logging.info('Turning device off')
 
+    @device_handler.command('com.acme.commands.play_kkbox')
+    def play_music(songName):  # You must match the parameters from the Action Package.
+        logging.info('play %s ' % songName)
+        url = 'https://widget.kkbox.com/v1/?id=4kxvr3wPWkaL9_y3o_&type=song&terr=TW&lang=TC&autoplay=true&loop=true'
+        result = subprocess.Popen(['firefox', url], stdout=subprocess.PIPE)
+        print(result.stdout)
+
     with SampleAssistant(lang, device_model_id, device_id,
                          conversation_stream,
                          grpc_channel, grpc_deadline,
