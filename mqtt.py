@@ -31,6 +31,21 @@ import struct
 import wave
 import sys
 
+from kkbox_partner_sdk.auth_flow import KKBOXOAuth
+
+CLIENT_ID = 'cea7cb81a731b46caeb9b8c0e25abd22'
+CLIENT_SECRET = '6317f7914dcc9e1fb50d01f744b3f1fb'
+
+auth = KKBOXOAuth(CLIENT_ID, CLIENT_SECRET)
+token = auth.fetch_access_token_by_client_credentials()
+
+from kkbox_partner_sdk.api import KKBOXAPI
+
+kkboxapi = KKBOXAPI(token)
+track_id = 'KmtpBrC4R1boMEdm1Q'
+artist = kkboxapi.track_fetcher.fetch_track(track_id)
+# print(artist)
+
 # 遠端連線相關的定義
 hostname = 'ibobby.ai.hinet.net'
 port = 8883
@@ -129,10 +144,10 @@ def on_connect(client, userdata, flag, rc):
 
 def testServer():
     text = '今天新北市天氣如何'
-    text = '我要聽張惠妹的姊妹'
     text = '今天有那些行程'
     text = '請問張惠妹是誰'
     text = '今天仁寶的股價是多少'
+    text = '我要聽張惠妹的姊妹'
     client.publish(req, serviceInvoke(text))
 
 
@@ -175,26 +190,29 @@ def on_message(client, userdata, msg):
                     if content != 0:
                         print("歌曲資訊:" + content)
 
-                    url = 'https://widget.kkbox.com/v1/?id=4kxvr3wPWkaL9_y3o_&type=song&terr=TW&lang=TC&autoplay=true&loop=true'
-                    result = subprocess.Popen(['chromium-browser', url], stdout=subprocess.PIPE)
+                    # url = 'https://widget.kkbox.com/v1/?id=4kxvr3wPWkaL9_y3o_&type=song&terr=TW&lang=TC&autoplay=true&loop=true'
+                    # result = subprocess.Popen(['chromium-browser', url], stdout=subprocess.PIPE)
                     # print(result.stdout)
+                    tickets = kkboxapi.ticket_fetcher.fetch_media_provision(content)
+                    # print(song)
+                    tUrl = tickets['url']
+                    subprocess.run(['ffplay', '-nodisp', '-autoexit', tUrl])
 
                 elif myType == '04':
                     content = ele.get('Content', 0)
-                    if content != 0 and not flag:
-                        flag = True
+                    if content != 0:
                         print("回應的文字:" + content)
 
                 else:
                     print('沒有登記過的類型')
                     print(ele)
 
-    else:
-        print('無法處理的主題')
-        print(payload)
+            else:
+                print('無法處理的主題')
+                print(payload)
 
-    if end:
-        sys.exit()
+        if end:
+            sys.exit()
 
 
 # 以上是訊息處理的程式

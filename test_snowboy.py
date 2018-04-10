@@ -55,7 +55,7 @@ def on_hot_word(hotword):
 # signal.signal(signal.SIGINT, signal_handler)
 
 models = ['resources/snowboy.umdl', 'resources/smart_mirror.umdl']
-sensitivity = [0.5] * len(models)
+sensitivity = [0.9] * len(models)
 detector = snowboydecoder.HotwordDetector(models, sensitivity=sensitivity)
 
 callbacks = [
