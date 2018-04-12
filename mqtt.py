@@ -73,7 +73,7 @@ RATE = 16000
 THRESHOLD = 2200  # The threshold intensity that defines silence
 # and noise signal (an int. lower than THRESHOLD is silence).
 
-SILENCE_LIMIT = 2# Silence limit in seconds. The max ammount of seconds where
+SILENCE_LIMIT = 2  # Silence limit in seconds. The max ammount of seconds where
 # only silence is recorded. When this time passes the
 # recording finishes and the file is delivered.
 
@@ -203,6 +203,23 @@ def save_speech(data, p):
     return filename + '.wav'
 
 
+def send(cmd):
+    url_str = 'mqtt://35.185.154.72:1883'
+    url = urlparse(url_str)
+    host = url.hostname
+    port = url.port
+
+    topic = 'kkbox/info'
+    payload = cmd
+
+    # If broker asks user/password.
+    auth = {'username': "", 'password': ""}
+    # If broker asks client ID.
+    client_id = ""
+    publish.single(topic, payload, hostname=host, port=port)
+    # publish.single(topic, payload, qos=1, host=host, auth=auth, client_id=client_id)
+
+
 def increase():
     file = open('record.txt', 'r', encoding='utf-8')
     index = int(file.read())
@@ -324,9 +341,17 @@ def on_message(client, userdata, msg):
                     # url = 'https://widget.kkbox.com/v1/?id=4kxvr3wPWkaL9_y3o_&type=song&terr=TW&lang=TC&autoplay=true&loop=true'
                     # result = subprocess.Popen(['chromium-browser', url], stdout=subprocess.PIPE)
                     # print(result.stdout)
+                    track_info = kkboxapi.track_fetcher.fetch_track(content)
+                    url = track_info['url']
+                    print('歌曲資訊連結是:{}'.format(url))
+                    send(url)
+
                     tickets = kkboxapi.ticket_fetcher.fetch_media_provision(content)
-                    # print(song)
+                    # print(tickets )
                     tUrl = tickets['url']
+                    print('下載位置連結是:{}'.format(tUrl))
+
+                    print('底下是播放資訊')
                     subprocess.run(['ffplay', '-nodisp', '-autoexit', tUrl])
 
                 elif myType == '04':

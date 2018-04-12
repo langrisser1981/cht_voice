@@ -8,16 +8,19 @@ token = auth.fetch_access_token_by_client_credentials()
 print(token)
 
 from kkbox_partner_sdk.api import KKBOXAPI
+
 kkboxapi = KKBOXAPI(token)
 track_id = 'KmtpBrC4R1boMEdm1Q'
-artist = kkboxapi.track_fetcher.fetch_track(track_id)
-#print(artist)
+track_info = kkboxapi.track_fetcher.fetch_track(track_id)
+url = track_info['url']
+print('歌曲資訊連結是:{}'.format(url))
 
 song = kkboxapi.ticket_fetcher.fetch_media_provision(track_id)
-#print(song)
+# print(song)
 file = song['url']
-#print(file)
+print('下載位置連結是:{}'.format(file))
+print('底下是播放資訊')
 
 import subprocess
-subprocess.run(['ffplay', '-autoexit', file])
 
+subprocess.run(['ffplay', '-autoexit', file])
