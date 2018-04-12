@@ -416,9 +416,35 @@ def main(api_endpoint, credentials, project_id,
     @device_handler.command('com.acme.commands.play_kkbox')
     def play_music(songName):  # You must match the parameters from the Action Package.
         logging.info('play %s ' % songName)
-        url = 'https://widget.kkbox.com/v1/?id=4kxvr3wPWkaL9_y3o_&type=song&terr=TW&lang=TC&autoplay=true&loop=true'
-        result = subprocess.Popen(['firefox', url], stdout=subprocess.PIPE)
-        print(result.stdout)
+        # url = 'https://widget.kkbox.com/v1/?id=4kxvr3wPWkaL9_y3o_&type=song&terr=TW&lang=TC&autoplay=true&loop=true'
+        # result = subprocess.Popen(['firefox', url], stdout=subprocess.PIPE)
+        # print(result.stdout)
+
+        from kkbox_partner_sdk.auth_flow import KKBOXOAuth
+
+        CLIENT_ID = 'cea7cb81a731b46caeb9b8c0e25abd22'
+        CLIENT_SECRET = '6317f7914dcc9e1fb50d01f744b3f1fb'
+
+        auth = KKBOXOAuth(CLIENT_ID, CLIENT_SECRET)
+        token = auth.fetch_access_token_by_client_credentials()
+        print(token)
+
+        from kkbox_partner_sdk.api import KKBOXAPI
+
+        kkboxapi = KKBOXAPI(token)
+        track_id = 'KmtpBrC4R1boMEdm1Q'
+        track_info = kkboxapi.track_fetcher.fetch_track(track_id)
+        url = track_info['url']
+        print('歌曲資訊連結是:{}'.format(url))
+
+        song = kkboxapi.ticket_fetcher.fetch_media_provision(track_id)
+        # print(song)
+        file = song['url']
+        print('下載位置連結是:{}'.format(file))
+        print('底下是播放資訊')
+
+        import subprocess
+        subprocess.run(['ffplay', '-autoexit', file])
 
     with SampleAssistant(lang, device_model_id, device_id,
                          conversation_stream,
