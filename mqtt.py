@@ -289,7 +289,7 @@ def on_connect(client, userdata, flag, rc):
     client.subscribe(asr_debug)
     subprocess.run(['aplay', 'wellcome.wav'])
     # testServer()
-    listen_for_speech(1800, 1)  # listen to mic.
+    listen_for_speech(500, 1)  # listen to mic.
 
 
 def testServer():
