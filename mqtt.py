@@ -22,6 +22,8 @@ asound.snd_lib_error_set_handler(c_error_handler)
 
 import subprocess
 import paho.mqtt.client as mqtt
+import paho.mqtt.publish as publish
+from urllib.parse import urlparse
 import json
 import datetime
 import calendar

@@ -120,6 +120,7 @@ class SampleAssistant(object):
 
         self.conversation_stream.start_recording()
         # logging.info('Recording audio request.')
+        subprocess.run(['aplay', 'wellcome.wav'])
         logging.info('開始錄音')
 
         def iter_assist_requests():
