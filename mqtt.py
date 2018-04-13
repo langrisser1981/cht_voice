@@ -354,7 +354,6 @@ def on_message(client, userdata, msg):
                     print('下載位置連結是:{}'.format(url))
 
                     print('底下是播放資訊')
-                    import subprocess
                     subprocess.run(['ffplay', '-nodisp', '-autoexit', url])
 
                 elif myType == '04':
