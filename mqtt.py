@@ -72,7 +72,7 @@ CHUNK = 2400  # CHUNKS of bytes to read each time from mic
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 16000
-THRESHOLD = 2200  # The threshold intensity that defines silence
+THRESHOLD = 500  # The threshold intensity that defines silence
 # and noise signal (an int. lower than THRESHOLD is silence).
 
 SILENCE_LIMIT = 2  # Silence limit in seconds. The max ammount of seconds where
