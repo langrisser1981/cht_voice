@@ -343,18 +343,19 @@ def on_message(client, userdata, msg):
                     # url = 'https://widget.kkbox.com/v1/?id=4kxvr3wPWkaL9_y3o_&type=song&terr=TW&lang=TC&autoplay=true&loop=true'
                     # result = subprocess.Popen(['chromium-browser', url], stdout=subprocess.PIPE)
                     # print(result.stdout)
-                    track_info = kkboxapi.track_fetcher.fetch_track(content)
+                    track_id = content
+                    track_info = kkboxapi.track_fetcher.fetch_track(track_id)
                     url = track_info['url']
                     print('歌曲資訊連結是:{}'.format(url))
                     send(url)
 
-                    tickets = kkboxapi.ticket_fetcher.fetch_media_provision(content)
-                    # print(tickets )
-                    tUrl = tickets['url']
-                    print('下載位置連結是:{}'.format(tUrl))
+                    tickets = kkboxapi.ticket_fetcher.fetch_media_provision(track_id)
+                    url = tickets['url']
+                    print('下載位置連結是:{}'.format(url))
 
                     print('底下是播放資訊')
-                    subprocess.run(['ffplay', '-nodisp', '-autoexit', tUrl])
+                    import subprocess
+                    subprocess.run(['ffplay', '-nodisp', '-autoexit', url])
 
                 elif myType == '04':
                     content = ele.get('Content', 0)

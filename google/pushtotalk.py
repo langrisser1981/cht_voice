@@ -14,6 +14,27 @@
 
 """Sample that implements a gRPC client for the Google Assistant API."""
 
+import paho.mqtt.publish as publish
+from urllib.parse import urlparse
+
+
+def send(cmd):
+    url_str = 'mqtt://35.185.154.72:1883'
+    url = urlparse(url_str)
+    host = url.hostname
+    port = url.port
+
+    topic = 'kkbox/info'
+    payload = cmd
+
+    # If broker asks user/password.
+    auth = {'username': "", 'password': ""}
+    # If broker asks client ID.
+    client_id = ""
+    publish.single(topic, payload, hostname=host, port=port)
+    # publish.single(topic, payload, qos=1, host=host, auth=auth, client_id=client_id)
+
+
 import concurrent.futures
 import json
 import logging
@@ -432,19 +453,27 @@ def main(api_endpoint, credentials, project_id,
         from kkbox_partner_sdk.api import KKBOXAPI
 
         kkboxapi = KKBOXAPI(token)
-        track_id = 'KmtpBrC4R1boMEdm1Q'
+
+        keyword = '女武神'
+        types = ['track']
+        result = kkboxapi.search_fetcher.search(keyword, types)
+
+        tracks = result['tracks']['data']
+        # print('搜尋結果是:{}'.format(tracks))
+
+        track_id = result['tracks']['data'][0]['id']
         track_info = kkboxapi.track_fetcher.fetch_track(track_id)
         url = track_info['url']
         print('歌曲資訊連結是:{}'.format(url))
+        send(url)
 
-        song = kkboxapi.ticket_fetcher.fetch_media_provision(track_id)
-        # print(song)
-        file = song['url']
-        print('下載位置連結是:{}'.format(file))
+        tickets = kkboxapi.ticket_fetcher.fetch_media_provision(track_id)
+        url = tickets['url']
+        print('下載位置連結是:{}'.format(url))
+
         print('底下是播放資訊')
-
         import subprocess
-        subprocess.run(['ffplay', '-autoexit', file])
+        subprocess.run(['ffplay', '-nodisp', '-autoexit', url])
 
     with SampleAssistant(lang, device_model_id, device_id,
                          conversation_stream,
