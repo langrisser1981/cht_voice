@@ -22,57 +22,63 @@ import snowboydecoder
 import signal
 import os, sys
 import subprocess
+import event
+from cht import *
 
-interrupted = False
+class Butler():
+    ##models = ['resources/snowboy.umdl', 'resources/smart_mirror.umdl']
+    models = ['resources/smart_mirror.umdl', 'resources/snowboy.umdl']
+    sensitivity = [0.9] * len(models)
+    interrupted = False
+    
+    
+    def __interrupt_callback(self):
+        return self.interrupted
+    
+    
+    def __on_hot_word(self, hotword):
+        snowboydecoder.play_audio_file()
+        self.__detector.terminate()
+        
+        if hotword == 'cht':
+            self.__cht.listen()
+            pass
+        
+        else:
+            voice_service = {
+                            'google': ["python3", "./google/pushtotalk.py", '--project-id', 'massive-tuner-194305', '--device-model-id',
+                            'massive-tuner-194305-assistant-sdk-light-qev3ip'],
+                            'cht': ["python3", "./cht.py"]
+            }
+            cmd = voice_service.get(hotword, ["echo", "錯誤的關鍵字"])
+            pro = subprocess.Popen(cmd).wait()
+            print("重新開始'啟動關鍵字'偵聽程式...")
+            os.execv(sys.executable, ['python3'] + sys.argv)
+            
+            
+    def __init__(self):
+        self.__cht = CHT()
+        self.__cht.addEventListener('conversation_over', self.__loop)
+        self.__loop()
+        
+        
+    def __loop(self):
+        callbacks = [
+            lambda: self.__on_hot_word('google'),
+            lambda: self.__on_hot_word('cht')
+        ]
+        
+        print('Listening... Press Ctrl+C to exit')
+        try:
+            self.__detector = snowboydecoder.HotwordDetector(self.models, sensitivity=self.sensitivity)
+            self.__detector.start(detected_callback=callbacks,
+                interrupt_check=self.__interrupt_callback,
+                sleep_time=0.03)
+            
+        except KeyboardInterrupt:
+            self.__cht.exit()
+            self.__detector.terminate()
+            print('鍵盤中斷')
+            
 
-
-def signal_handler(signal, frame):
-    global interrupted
-    interrupted = True
-
-
-def interrupt_callback():
-    global interrupted
-    return interrupted
-
-
-def on_hot_word(hotword):
-    snowboydecoder.play_audio_file()
-    detector.terminate()
-
-    voice_service = {
-        'google': ["python3", "./google/pushtotalk.py", '--project-id', 'massive-tuner-194305', '--device-model-id',
-                   'massive-tuner-194305-assistant-sdk-light-qev3ip'],
-        'cht': ["python3", "./mqtt.py"]
-    }
-    cmd = voice_service.get(hotword, ["echo", "錯誤的關鍵字"])
-    pro = subprocess.Popen(cmd).wait()
-
-    print("重新啟動""關鍵字""偵聽程式...")
-    os.execv(sys.executable, ['python3'] + sys.argv)
-
-
-# capture SIGINT signal, e.g., Ctrl+C
-# signal.signal(signal.SIGINT, signal_handler)
-
-# models = ['resources/snowboy.umdl', 'resources/smart_mirror.umdl']
-models = ['resources/smart_mirror.umdl', 'resources/snowboy.umdl']
-sensitivity = [0.9] * len(models)
-detector = snowboydecoder.HotwordDetector(models, sensitivity=sensitivity)
-
-callbacks = [
-    lambda: on_hot_word('google'),
-    lambda: on_hot_word('cht')
-]
-
-print('Listening... Press Ctrl+C to exit')
-
-# main loop
-try:
-    detector.start(detected_callback=callbacks,
-                   interrupt_check=interrupt_callback,
-                   sleep_time=0.03)
-    detector.terminate()
-
-except KeyboardInterrupt:
-    print('鍵盤中斷')
+butler = Butler()

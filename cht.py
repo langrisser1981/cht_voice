@@ -37,19 +37,10 @@ import os
 import math
 import struct
 import sys
-
-from kkbox_partner_sdk.auth_flow import KKBOXOAuth
-CLIENT_ID = 'cea7cb81a731b46caeb9b8c0e25abd22'
-CLIENT_SECRET = '6317f7914dcc9e1fb50d01f744b3f1fb'
-auth = KKBOXOAuth(CLIENT_ID, CLIENT_SECRET)
-token = auth.fetch_access_token_by_client_credentials()
-
-from kkbox_partner_sdk.api import KKBOXAPI
-kkboxapi = KKBOXAPI(token)
-
-track_id = 'KmtpBrC4R1boMEdm1Q'
-artist = kkboxapi.track_fetcher.fetch_track(track_id)
-##print(artist)
+import threading
+import kkbox
+from event import *
+import sys, logging
 
 
 def sendToPhone(cmd):
@@ -99,9 +90,6 @@ def getReqId():
     ##reqId = 'EID{0}'.format(time.mktime(localTime.timetuple()) + 1e-6 * localTime.microsecond)
     reqId = 'EID{0}{1:0>2d}{2:0>2d}{3:0>2d}{4:0>2d}{5:0>5d}'.format(localTime.year, localTime.month, localTime.day, localTime.hour, localTime.minute, index)
     return reqId
-
-
-import sys, logging
 
 
 class CHT(object):
@@ -170,9 +158,7 @@ class CHT(object):
         self.__client.subscribe(CHT.rsp)
         self.__client.subscribe(CHT.asr_debug)
         subprocess.run(['aplay', 'wellcome.wav'])
-        ##self.__testServer()
-        self.__listen_for_speech(1000, 1)  # listen to mic.
-        ##self.audio_int()
+        self.__eventManager.dispatchEvent(self.EVENT_MQTT_Connected)
         
         
     def __testServer(self):
@@ -254,7 +240,11 @@ class CHT(object):
             print(payload)
             
         if end:
+            ##self.__active = False
+            ##self.__job.stop()
             ##sys.exit()
+            print('辨識結束')
+            self.__eventManager.dispatchEvent(self.EVENT_Conversation_Over)
             
             
     ##以上是中華電信語音辨識，回傳訊息處理的程式
@@ -370,102 +360,56 @@ class CHT(object):
         return filename
     
     
-    def __init__(self):
-        self.__eventManager = EventManager()
-        self.__eventManager.start()
-        
-        self.__client = mqtt.Client()
-        self.__client.username_pw_set(CHT.Token, CHT.Token)
-        self.__client.tls_set('ROOTeCA_64.crt')
-        ##self.__client.tls_set_context(context=ssl.create_default_context())
-        
-        self.__client.on_connect = self.__on_connect
-        self.__client.on_disconnect = self.__on_disconnect
-        self.__client.on_message = self.__on_message
-        self.__client.connect(CHT.hostname, CHT.port)
-        ##self.__client.publish(CHT.req, self.__register())
-        
-        
-    def __enter__(self):
-        return self
+    def __eventProcess(self, event):
+        print(event.name)
+        if event.name == 'conversation_over':
+            self.func()
+            
+        pass
     
     
-    def __exit__(self, type, value, traceback):
-        return False
-    
-    
-    def loop(self):
+    def __loop(self):
         try:
-            while True:
+            while self.__active:
                 self.__client.loop(.1)
                 
         except KeyboardInterrupt:
             print('鍵盤中斷')
-
-
-class EventManager():
+            
+            
+    def listen(self):
+        ##self.__testServer()
+        ##self.audio_int()
+        self.__listen_for_speech(1000, 1)  # listen to mic.
+        
+        
+    def addEventListener(self, type, func):
+        self.func = func
+        
+        
     def __init__(self):
-        self.__eventQueue = Queue()
-        self.__handlers = {}
-        self.__active = False
-        self.__thread = Thread(target = self.__run)
+        self.__client = mqtt.Client()
+        self.__client.username_pw_set(CHT.Token, CHT.Token)
+        self.__client.tls_set('ROOTeCA_64.crt')
+        ##self.__client.tls_set_context(context=ssl.create_default_context())
+        self.__client.on_connect = self.__on_connect
+        self.__client.on_disconnect = self.__on_disconnect
+        self.__client.on_message = self.__on_message
         
+        self.__eventManager = EventManager()
+        self.__eventManager.start()
+        self.__eventManager.addEventListaner(self.EVENT_MQTT_Connected.name, self.__eventProcess)
+        self.__eventManager.addEventListaner(self.EVENT_Conversation_Over.name, self.__eventProcess)
         
-    def __run(self):
-        while self.__active == True:
-            try:
-                event = self.__eventQueue.get(block=True, timeout=1)
-                self.__eventProcess(event)
-                
-            except Empty:
-                pass
-            
-            
-    def __eventProcess(self, event):
-        if event.name in self.__handlers:
-            for handler in self.__handlers[event.name]:
-                handler(event)
-                
-                
-    def start(self):
         self.__active = True
-        self.__thread.start()
+        self.__job = threading.Thread(target=self.__loop)
+        self.__job.start()
         
-        
-    def stop(self):
-        self.__active = False
-        self.__thread.join()
-        
-        
-    def addEventListaner(self, eventName, handler):
-        try:
-            handlerList = self.__handlers[eventName]
-        except KeyError:
-            handlerList = []
-            
-        self.__handlers[eventName] = handlerList
-        if handler not in handlerList:
-            handlerList.append(handler)
-            
-            
-    def removeEventListaner(self, eventName, handler):
-        try:
-            handlerList = self.__handlers[eventName]
-        except KeyError:
-            return
-        
-        self.__handlers[eventName] = handlerList
-        if handler in handlerList:
-            handlerList.remove(handler)
-            
-            
-    def dispatchEvent(self, event):
-        self.__eventQueue.put(event)
-        
-        
-class Event():
-    def __init__(self, name=None):
-        self.name = name
-        self.data = {}
-        
-        
+        self.__client.connect(CHT.hostname, CHT.port)
+        ##self.__client.publish(CHT.req, self.__register())
+    
+    
+    def exit(self):
+        self.__eventManager.removeEventListaner(EVENT_MQTT_Connected.name, self.__mqtt_connected)
+        self.__eventManager.removeEventListaner(EVENT_Conversation_Over.name, self.__callback)
+        self.__eventManager.stop()
